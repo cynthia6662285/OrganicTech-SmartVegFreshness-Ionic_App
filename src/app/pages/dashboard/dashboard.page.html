@@ -1,0 +1,150 @@
+<ion-header class="ion-no-border">
+  <ion-toolbar>
+    <div class="header-top">
+      <div class="brand">
+        <ion-icon name="leaf-outline"></ion-icon>
+        <span>Organic Tech</span>
+      </div>
+      <button class="avatar-btn" (click)="router.navigate(['/tabs/settings'])">
+        <ion-icon name="settings-outline"></ion-icon>
+      </button>
+    </div>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <div class="dashboard-container">
+
+    <div class="header-greeting">
+      <p class="greeting-sub">{{ getGreeting() }}</p>
+      <h1 class="greeting-main">
+        Kebun Digitalmu<br>
+        <em>{{ getDashboardStatus() }}</em>
+      </h1>
+    </div>
+
+    <button class="scan-btn-main" (click)="goToScan()">
+      <ion-icon name="scan-outline"></ion-icon>
+      Mulai Scan Baru
+    </button>
+
+    <div class="loading-wrapper" *ngIf="isLoading">
+      <ion-spinner name="crescent"></ion-spinner>
+    </div>
+
+    <div *ngIf="!isLoading">
+
+      <!-- Scan Terbaru -->
+      <div class="latest-scan-card" *ngIf="scanTerbaru">
+        <div class="latest-scan-header">
+          <span class="latest-badge">SCAN TERBARU</span>
+          <span class="freshness-score">
+            {{ scanTerbaru.freshness_percentage }}%
+            <small>SKOR KESEGARAN</small>
+          </span>
+        </div>
+        <div class="latest-scan-body">
+          <div class="latest-scan-info">
+            <h2>Hasil Analisis</h2>
+            <p>Discan {{ getWaktuScan(scanTerbaru.scanned_at) }}</p>
+            <div class="latest-status">
+              <ion-icon
+                [name]="scanTerbaru.status === 'Layak' ? 'checkmark-circle' : 'close-circle'"
+                [style.color]="scanTerbaru.status === 'Layak' ? '#3d6b47' : '#e74c3c'">
+              </ion-icon>
+              <span>Status: <strong>{{ scanTerbaru.status }}</strong></span>
+            </div>
+          </div>
+          <div class="latest-scan-image">
+            <img [src]="scanTerbaru.image" alt="Scan terbaru" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty State -->
+      <div class="latest-scan-card empty-scan" *ngIf="!scanTerbaru" (click)="goToScan()">
+        <div class="empty-scan-content">
+          <ion-icon name="camera-outline"></ion-icon>
+          <div>
+            <h3>Belum Ada Scan</h3>
+            <p>Ketuk untuk mulai scan sayuran pertamamu</p>
+          </div>
+          <ion-icon name="arrow-forward-outline" class="arrow"></ion-icon>
+        </div>
+      </div>
+
+      <!-- Total Scan -->
+      <div class="total-scan-card">
+        <div class="total-scan-left">
+          <div class="total-icon">
+            <ion-icon name="stats-chart-outline"></ion-icon>
+          </div>
+          <div>
+            <span class="total-label">TOTAL SCAN</span>
+            <h2 class="total-number">{{ totalScan }}</h2>
+            <p class="total-sub">Total Scan Dilakukan</p>
+          </div>
+        </div>
+        <div class="total-scan-right">
+          <div class="mini-stat">
+            <span class="mini-number layak">{{ layakCount }}</span>
+            <span class="mini-label">Layak</span>
+          </div>
+          <div class="mini-stat">
+            <span class="mini-number tidak-layak">{{ tidakLayakCount }}</span>
+            <span class="mini-label">Tidak Layak</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Riwayat -->
+      <div class="history-card" (click)="goToHistory()">
+        <div class="history-card-left">
+          <div class="history-icon">
+            <ion-icon name="time-outline"></ion-icon>
+          </div>
+          <div>
+            <h3>Lihat Riwayat</h3>
+            <p>Tinjau {{ totalScan }} laporan terakhirmu</p>
+          </div>
+        </div>
+        <ion-icon name="arrow-forward-outline" class="history-arrow"></ion-icon>
+      </div>
+
+      <!-- Tren Kesegaran -->
+      <div class="trend-card" *ngIf="totalScan > 0">
+        <div class="trend-header">
+          <ion-icon name="trending-up-outline"></ion-icon>
+          <h3>Tren Kesegaran</h3>
+        </div>
+        <div class="trend-row">
+          <span class="trend-label">Rata-rata Skor</span>
+          <span class="trend-value">{{ rataRataKesegaran }}%</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" [style.width]="getProgressWidth(rataRataKesegaran)"></div>
+        </div>
+        <p class="trend-note" *ngIf="rataRataKesegaran >= 70">🌿 Kamu mengonsumsi sayuran yang sangat segar!</p>
+        <p class="trend-note" *ngIf="rataRataKesegaran < 70 && rataRataKesegaran >= 40">⚠️ Kesegaran sayuranmu cukup baik, pertahankan!</p>
+        <p class="trend-note" *ngIf="rataRataKesegaran < 40">❌ Perhatikan kesegaran sayuranmu lebih baik lagi.</p>
+      </div>
+
+      <!-- Akses Cepat -->
+      <div class="quick-access">
+        <div class="quick-header">
+          <h3>Akses Cepat</h3>
+          <button class="see-all-btn" (click)="goToScan()">Lihat Semua</button>
+        </div>
+        <div class="quick-grid">
+          <div class="quick-item" *ngFor="let kat of kategoriList" (click)="goToKategori(kat.key)">
+            <div class="quick-icon" [style.background]="kat.warna + '20'">
+              <ion-icon [name]="kat.icon" [style.color]="kat.warna"></ion-icon>
+            </div>
+            <span>{{ kat.label }}</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</ion-content>

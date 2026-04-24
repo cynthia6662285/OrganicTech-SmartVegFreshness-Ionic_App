@@ -1,0 +1,98 @@
+<ion-header class="ion-no-border">
+  <ion-toolbar>
+    <div class="header-top">
+      <div class="brand">
+        <ion-icon name="leaf-outline"></ion-icon>
+        <span>Organic Tech</span>
+      </div>
+    </div>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <div class="settings-container">
+
+    <div class="page-title">
+      <h1>Pengaturan</h1>
+      <p>Informasi sistem dan data referensi</p>
+    </div>
+
+    <!-- Tentang Aplikasi -->
+    <div class="section-card clickable" (click)="tampilkanTentang()">
+      <div class="section-row">
+        <div class="row-icon green">
+          <ion-icon name="information-circle-outline"></ion-icon>
+        </div>
+        <div class="row-info">
+          <h3>Tentang Aplikasi</h3>
+          <p>Versi 1.0.0 — Smart Veg Freshness</p>
+        </div>
+        <ion-icon name="chevron-forward-outline" class="row-arrow"></ion-icon>
+      </div>
+    </div>
+
+    <div class="section-card clickable" (click)="bukaTermsCondition()">
+      <div class="section-row">
+        <div class="row-icon green">
+          <ion-icon name="information-circle-outline"></ion-icon>
+        </div>
+        <div class="row-info">
+          <h3>Syarat dan Ketentuan</h3>
+          <p>Aturan penggunaan aplikasi</p>
+        </div>
+        <ion-icon name="chevron-forward-outline" class="row-arrow"></ion-icon>
+      </div>
+    </div>
+   <div class="section-card clickable" (click)="bukaPrivacyPolicy()">
+      <div class="section-row">
+        <div class="row-icon green">
+          <ion-icon name="information-circle-outline"></ion-icon>
+        </div>
+        <div class="row-info">
+          <h3>Kebijakan Privasi</h3>
+          <p>Cara kami mengelola data Anda</p>
+        </div>
+        <ion-icon name="chevron-forward-outline" class="row-arrow"></ion-icon>
+      </div>
+    </div>
+
+    <!-- Data Referensi -->
+    <div class="section-card">
+      <h3 class="section-title">Data Referensi Sayuran</h3>
+      <p class="section-desc">Threshold yang digunakan sistem untuk analisis kesegaran</p>
+      <div class="ref-list">
+        <div class="ref-item" *ngFor="let ref of referensiList">
+          <div class="ref-header">
+            <span class="ref-name">{{ ref.nama_sayuran }}</span>
+            <span class="ref-kategori"
+              [style.background]="(getKategoriInfo(ref.kategori).warna || '#888') + '20'"
+              [style.color]="getKategoriInfo(ref.kategori).warna || '#888'">
+              {{ getKategoriInfo(ref.kategori).label || ref.kategori }}
+            </span>
+          </div>
+          <div class="ref-params">
+            <span>💡 {{ ref.min_brightness }}–{{ ref.max_brightness }}</span>
+            <span>🟢 {{ ref.min_green }}–{{ ref.max_green }}%</span>
+            <span>🔴 {{ ref.min_red }}–{{ ref.max_red }}%</span>
+            <span>🟡 {{ ref.min_warm }}–{{ ref.max_warm }}%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hapus Riwayat -->
+    <div class="section-card clickable" (click)="hapusSemuaRiwayat()">
+      <div class="section-row">
+        <div class="row-icon red">
+          <ion-icon name="trash-outline"></ion-icon>
+        </div>
+        <div class="row-info">
+          <h3 style="color: #e74c3c">Hapus Semua Riwayat</h3>
+          <p>Hapus seluruh data hasil scan</p>
+        </div>
+        <ion-icon name="chevron-forward-outline" class="row-arrow"></ion-icon>
+      </div>
+    </div>
+
+  </div>
+</ion-content>

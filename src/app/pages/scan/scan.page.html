@@ -1,0 +1,78 @@
+<ion-header class="ion-no-border">
+  <ion-toolbar>
+    <ion-title>{{ step === 'pilih-kategori' ? 'Pilih Kategori' : (kategoriDipilih ? kategoriInfo[kategoriDipilih].label : 'Scan') }}</ion-title>
+    <ion-buttons slot="end" *ngIf="step === 'siap-scan'">
+      <ion-button (click)="gantiKategori()">
+        <ion-icon name="swap-horizontal-outline"></ion-icon>
+        Ganti
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+
+  <!-- STEP 1: PILIH KATEGORI -->
+  <div class="kategori-container" *ngIf="step === 'pilih-kategori'">
+    <div class="kategori-header">
+      <h2>Pilih Jenis Sayuran</h2>
+      <p>Pilih kategori untuk analisis yang lebih akurat</p>
+    </div>
+
+    <div class="kategori-grid">
+      <div
+        class="kategori-card"
+        *ngFor="let kat of kategoriList"
+        (click)="pilihKategori(kat)"
+        [style.border-color]="kategoriInfo[kat].warna + '40'">
+
+        <div class="kat-icon" [style.background]="kategoriInfo[kat].warna + '15'">
+          <ion-icon [name]="kategoriInfo[kat].icon" [style.color]="kategoriInfo[kat].warna"></ion-icon>
+        </div>
+        <div class="kat-info">
+          <h3>{{ kategoriInfo[kat].label }}</h3>
+          <p>{{ kategoriInfo[kat].contoh }}</p>
+        </div>
+        <ion-icon name="chevron-forward-outline" class="kat-arrow"></ion-icon>
+      </div>
+    </div>
+
+    <div class="tips-btn" (click)="tampilkanTips()">
+      <ion-icon name="bulb-outline"></ion-icon>
+      <span>Tips Memilih Sayuran Segar</span>
+      <ion-icon name="chevron-forward-outline"></ion-icon>
+    </div>
+  </div>
+
+  <!-- STEP 2: SIAP SCAN -->
+  <div class="scan-container" *ngIf="step === 'siap-scan' && kategoriDipilih" (click)="takePicture()">
+
+    <div class="scan-info-top">
+      <div class="kategori-chip" [style.background]="kategoriInfo[kategoriDipilih].warna + '20'">
+        <ion-icon [name]="kategoriInfo[kategoriDipilih].icon" [style.color]="kategoriInfo[kategoriDipilih].warna"></ion-icon>
+        <span [style.color]="kategoriInfo[kategoriDipilih].warna">{{ kategoriInfo[kategoriDipilih].label }}</span>
+      </div>
+    </div>
+
+    <div class="scan-frame">
+      <div class="corner tl"></div>
+      <div class="corner tr"></div>
+      <div class="corner bl"></div>
+      <div class="corner br"></div>
+      <div class="scan-line"></div>
+    </div>
+
+    <div class="scan-info-bottom">
+      <ion-icon name="camera-outline"></ion-icon>
+      <p>Ketuk untuk mengambil foto</p>
+      <span>{{ kategoriInfo[kategoriDipilih].contoh }}</span>
+    </div>
+
+    <div class="lighting-warning">
+      <ion-icon name="sunny-outline"></ion-icon>
+      <span>Pastikan ruangan cukup terang</span>
+    </div>
+
+  </div>
+
+</ion-content>

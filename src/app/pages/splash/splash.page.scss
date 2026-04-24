@@ -1,0 +1,140 @@
+ion-content {
+  --background: transparent;
+  --overflow: hidden;
+}
+
+.splash-container {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(160deg, #f0f7ee 0%, #e8f5e2 40%, #d4edda 100%);
+  overflow: hidden;
+}
+
+// Background decorative circles
+.splash-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.bg-circle {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(61, 107, 71, 0.06);
+}
+
+.circle-1 {
+  width: 400px;
+  height: 400px;
+  top: -120px;
+  right: -100px;
+}
+
+.circle-2 {
+  width: 300px;
+  height: 300px;
+  bottom: -80px;
+  left: -80px;
+  background: rgba(61, 107, 71, 0.08);
+}
+
+.circle-3 {
+  width: 200px;
+  height: 200px;
+  top: 40%;
+  right: -60px;
+  background: rgba(61, 107, 71, 0.04);
+}
+
+// Main content
+.splash-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+}
+
+// Logo
+.splash-logo {
+  width: 140px;
+  height: 140px;
+  margin-bottom: 28px;
+  opacity: 0; // animasi mulai dari invisible
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 8px 24px rgba(61, 107, 71, 0.25));
+  }
+}
+
+// Title
+.splash-title {
+  font-size: 36px;
+  font-weight: 800;
+  color: #2d5235;
+  margin: 0 0 8px;
+  letter-spacing: -0.5px;
+  opacity: 0; // animasi mulai dari invisible
+}
+
+// Subtitle
+.splash-subtitle {
+  font-size: 15px;
+  color: #5a8a6a;
+  margin: 0;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  opacity: 0; // animasi mulai dari invisible
+}
+
+// Loading dots
+.splash-dots {
+  display: flex;
+  gap: 8px;
+  margin-top: 48px;
+  opacity: 0; // animasi mulai dari invisible
+
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #3d6b47;
+    animation: dotPulse 1.4s ease-in-out infinite;
+
+    &.dot-1 { animation-delay: 0s; }
+    &.dot-2 { animation-delay: 0.2s; }
+    &.dot-3 { animation-delay: 0.4s; }
+  }
+}
+
+@keyframes dotPulse {
+  0%, 80%, 100% {
+    transform: scale(0.6);
+    opacity: 0.4;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+// Footer
+.splash-footer {
+  position: absolute;
+  bottom: 40px;
+  z-index: 1;
+
+  p {
+    font-size: 13px;
+    color: #8aaa8a;
+    margin: 0;
+  }
+}

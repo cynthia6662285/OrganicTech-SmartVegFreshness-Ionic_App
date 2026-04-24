@@ -1,0 +1,150 @@
+<ion-header class="ion-no-border">
+  <ion-toolbar>
+    <ion-title>Kebijakan Privasi</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="tutup()">
+        <ion-icon name="close-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <div class="doc-container">
+
+    <div class="doc-header">
+      <ion-icon name="shield-checkmark-outline"></ion-icon>
+      <h1>Kebijakan Privasi</h1>
+      <p>Terakhir diperbarui: April 2026</p>
+    </div>
+
+    <div class="doc-section">
+      <h2>1. Pendahuluan</h2>
+      <p>
+        Selamat datang di <strong>Smart Veg Freshness</strong>. Kami berkomitmen untuk melindungi
+        privasi Anda dan mengelola data dengan penuh tanggung jawab. Kebijakan Privasi ini
+        menjelaskan bagaimana kami mengumpulkan, menggunakan, dan melindungi informasi yang
+        Anda berikan saat menggunakan aplikasi ini.
+      </p>
+    </div>
+
+    <div class="doc-section">
+      <h2>2. Data yang Kami Kumpulkan</h2>
+      <p>Kami hanya mengumpulkan data yang diperlukan untuk menjalankan fungsi aplikasi, yaitu:</p>
+      <ul>
+        <li>
+          <strong>Gambar Sayuran</strong> — Foto yang Anda ambil menggunakan kamera perangkat
+          untuk keperluan analisis kesegaran. Gambar disimpan dalam bentuk thumbnail berukuran
+          kecil di database kami.
+        </li>
+        <li>
+          <strong>Hasil Analisis</strong> — Data hasil scan seperti tingkat kesegaran,
+          kecerahan, dan dominasi warna yang dihasilkan dari proses analisis gambar.
+        </li>
+        <li>
+          <strong>Data Penggunaan</strong> — Informasi tentang kategori sayuran yang dipilih
+          dan waktu scan dilakukan.
+        </li>
+      </ul>
+    </div>
+
+    <div class="doc-section">
+      <h2>3. Cara Kami Menggunakan Data</h2>
+      <p>Data yang dikumpulkan digunakan untuk:</p>
+      <ul>
+        <li>Menampilkan riwayat hasil scan sayuran Anda</li>
+        <li>Menghitung statistik penggunaan aplikasi (total scan, rata-rata kesegaran)</li>
+        <li>Meningkatkan akurasi dan performa sistem analisis</li>
+        <li>Memberikan pengalaman pengguna yang lebih baik</li>
+      </ul>
+    </div>
+
+    <div class="doc-section">
+      <h2>4. Penyimpanan dan Keamanan Data</h2>
+      <p>
+        Seluruh data disimpan menggunakan layanan <strong>Google Firebase Firestore</strong>
+        yang dilengkapi dengan enkripsi data standar industri. Kami menerapkan langkah-langkah
+        keamanan teknis dan organisasi yang wajar untuk melindungi data Anda dari akses
+        yang tidak sah, pengungkapan, perubahan, atau penghapusan.
+      </p>
+      <p>
+        Gambar sayuran yang Anda ambil dikompresi menjadi thumbnail berukuran kecil
+        (120x120 piksel) sebelum disimpan untuk meminimalkan penggunaan ruang penyimpanan.
+      </p>
+    </div>
+
+    <div class="doc-section">
+      <h2>5. Izin Aplikasi</h2>
+      <p>Aplikasi ini memerlukan izin berikut untuk berfungsi dengan baik:</p>
+      <ul>
+        <li>
+          <strong>Kamera</strong> — Untuk mengambil foto sayuran yang akan dianalisis.
+          Izin ini wajib untuk menjalankan fitur utama aplikasi.
+        </li>
+        <li>
+          <strong>Internet</strong> — Untuk menyimpan dan mengambil data riwayat scan
+          dari database cloud.
+        </li>
+      </ul>
+    </div>
+
+    <div class="doc-section">
+      <h2>6. Berbagi Data dengan Pihak Ketiga</h2>
+      <p>
+        Kami <strong>tidak menjual, memperdagangkan, atau membagikan</strong> data pribadi
+        Anda kepada pihak ketiga untuk tujuan komersial. Data Anda hanya digunakan dalam
+        lingkup operasional aplikasi Smart Veg Freshness.
+      </p>
+      <p>
+        Kami menggunakan layanan pihak ketiga berikut yang memiliki kebijakan privasi tersendiri:
+      </p>
+      <ul>
+        <li>Google Firebase (penyimpanan data)</li>
+      </ul>
+    </div>
+
+    <div class="doc-section">
+      <h2>7. Retensi Data</h2>
+      <p>
+        Data hasil scan disimpan selama Anda menggunakan aplikasi. Anda dapat menghapus
+        seluruh riwayat scan kapan saja melalui menu <strong>Pengaturan → Hapus Semua Riwayat</strong>.
+      </p>
+    </div>
+
+    <div class="doc-section">
+      <h2>8. Hak Pengguna</h2>
+      <p>Anda memiliki hak untuk:</p>
+      <ul>
+        <li>Mengakses data hasil scan yang tersimpan melalui halaman Riwayat</li>
+        <li>Menghapus data riwayat scan secara individual atau seluruhnya</li>
+        <li>Menghentikan penggunaan aplikasi kapan saja</li>
+      </ul>
+    </div>
+
+    <div class="doc-section">
+      <h2>9. Perubahan Kebijakan</h2>
+      <p>
+        Kami berhak memperbarui Kebijakan Privasi ini sewaktu-waktu. Perubahan akan
+        diberitahukan melalui pembaruan aplikasi. Dengan terus menggunakan aplikasi setelah
+        perubahan dipublikasikan, Anda dianggap menyetujui kebijakan yang diperbarui.
+      </p>
+    </div>
+
+    <div class="doc-section">
+      <h2>10. Hubungi Kami</h2>
+      <p>
+        Jika Anda memiliki pertanyaan atau kekhawatiran terkait kebijakan privasi ini,
+        silakan hubungi kami melalui:
+      </p>
+      <div class="contact-box">
+        <ion-icon name="mail-outline"></ion-icon>
+        <span>smartvegfreshness@gmail.com</span>
+      </div>
+    </div>
+
+    <div class="doc-footer">
+      <p>© 2026 Smart Veg Freshness. Seluruh hak dilindungi.</p>
+    </div>
+
+  </div>
+</ion-content>

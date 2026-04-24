@@ -1,0 +1,97 @@
+<ion-header class="ion-no-border">
+  <ion-toolbar>
+    <div class="header-top">
+      <div class="brand">
+        <ion-icon name="leaf-outline"></ion-icon>
+        <span>Organic Tech</span>
+      </div>
+    </div>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <div class="history-container">
+
+    <!-- Page Title -->
+    <div class="page-title">
+      <h1>Riwayat Scan</h1>
+      <p>Tinjau analisis kesegaran sayuranmu dari waktu ke waktu.</p>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-box">
+        <span class="stat-label">TOTAL SCAN</span>
+        <span class="stat-value">{{ totalScan }}</span>
+      </div>
+      <div class="stat-box highlight">
+        <span class="stat-label">TINGKAT KESEGARAN</span>
+        <span class="stat-value">{{ rataRataKesegaran }}%</span>
+      </div>
+    </div>
+
+    <!-- Loading -->
+    <div class="loading-wrapper" *ngIf="isLoading">
+      <ion-spinner name="crescent"></ion-spinner>
+    </div>
+
+    <!-- Empty State -->
+    <div class="empty-state" *ngIf="!isLoading && riwayatFilter.length === 0">
+      <ion-icon name="leaf-outline"></ion-icon>
+      <h3>Belum Ada Riwayat</h3>
+      <p>Mulai scan sayuran untuk melihat riwayat di sini</p>
+      <button class="scan-now-btn" (click)="goToScan()">
+        <ion-icon name="camera-outline"></ion-icon>
+        Scan Sekarang
+      </button>
+    </div>
+
+    <!-- List -->
+    <div class="history-list" *ngIf="!isLoading && riwayatFilter.length > 0">
+      <div class="history-item" *ngFor="let item of riwayatFilter">
+        <div class="item-image">
+          <img
+            *ngIf="item.image; else noImage"
+            [src]="item.image"
+            alt="Hasil scan"
+            (error)="item.image = ''"
+          />
+          <ng-template #noImage>
+            <div class="no-image-placeholder">
+              <ion-icon name="leaf-outline"></ion-icon>
+            </div>
+          </ng-template>
+        </div>
+        <div class="item-info">
+          <div class="item-header">
+            <div>
+              <h3>{{ item.nama_kategori || 'Hasil Analisis' }}</h3>
+              <p class="item-time">{{ getWaktuScan(item.scanned_at) }}</p>
+            </div>
+            <button class="delete-btn" (click)="konfirmasiHapus(item)">
+              <ion-icon name="trash-outline"></ion-icon>
+            </button>
+          </div>
+          <p class="item-alasan" *ngIf="item.alasan">{{ item.alasan }}</p>
+          <div class="item-footer">
+            <div class="status-badge" [class.segar]="item.status === 'Layak'" [class.tidak-segar]="item.status === 'Tidak Layak'">
+              <ion-icon [name]="getStatusIcon(item.status)"></ion-icon>
+              {{ getStatusLabel(item.status) }}
+            </div>
+            <span class="freshness-pct">{{ item.freshness_percentage }}% Segar</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+  </div>
+
+  <!-- FAB Scan -->
+  <ion-fab vertical="bottom" horizontal="end" slot="fixed">
+    <ion-fab-button color="primary" (click)="goToScan()">
+      <ion-icon name="camera-outline"></ion-icon>
+    </ion-fab-button>
+  </ion-fab>
+
+</ion-content>
