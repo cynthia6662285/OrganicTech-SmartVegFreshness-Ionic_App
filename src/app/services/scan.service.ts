@@ -1,18 +1,20 @@
 import { Injectable } from '@angular/core';
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/firestore';
+import { environment } from '../../environments/environment';
 import { ScanResult } from '../models/scan-result.model';
 import { VegetableReference, KategoriSayuran, KATEGORI_INFO } from '../models/vegetable-reference.model';
 import { VegetableReferenceService } from './vegetable-reference.service';
-import { environment } from '../../environments/environment';
+import { MlDetectionService } from './ml-detection.service';
+import { DeviceService } from './device.service';
 
 export interface AnalysisParams {
   brightness: number;
   green_dominance: number;
   red_dominance: number;
   warm_dominance: number;
-  color_variety: number;
   organic_score: number;
+  color_variety: number;
 }
 
 export interface AnalysisResult {
@@ -24,27 +26,42 @@ export interface AnalysisResult {
   warm_dominance: number;
   kategori: KategoriSayuran;
   nama_kategori: string;
+  detected_label: string;
+  ml_confidence: number;
   alasan: string;
 }
 
 @Injectable({ providedIn: 'root' })
 export class ScanService {
 
-  // Gunakan Firebase native langsung — bypass AngularFire
-  private get db() {
-    return firebase.firestore();
-  }
-
-  constructor(private vegRefService: VegetableReferenceService) {
-    // Pastikan Firebase sudah di-initialize sebelum digunakan
-    // (guard ini aman untuk dipanggil berkali-kali)
-    if (!firebase.apps.length) {
-      firebase.initializeApp(environment.firebase);
-      console.log('[ScanService] Firebase initialized manually');
+  private initFirebase() {
+    try {
+      if (!firebase.apps || firebase.apps.length === 0) {
+        firebase.initializeApp(environment.firebase);
+        console.log('[Firebase] Initialized manually');
+      }
+    } catch (e) {
+      console.error('[Firebase] Init error:', e);
     }
   }
 
-  // ===== 1. EKSTRAKSI PARAMETER VISUAL =====
+  private get db() {
+    this.initFirebase();
+    return firebase.firestore();
+  }
+
+  constructor(
+    private vegRefService: VegetableReferenceService,
+    private mlService: MlDetectionService,
+    private deviceService: DeviceService,
+  ) {
+    // Pre-load ML model di background
+    this.mlService.loadModel().catch(e =>
+      console.warn('[ScanService] ML model tidak ter-load:', e)
+    );
+  }
+
+  // ===== EKSTRAKSI PARAMETER VISUAL =====
   private ekstrakParameter(imageBase64: string, size = 80): Promise<AnalysisParams> {
     return new Promise((resolve, reject) => {
       const img = new Image();
@@ -65,13 +82,11 @@ export class ScanService {
           let greenPixels = 0;
           let redPixels = 0;
           let warmPixels = 0;
-          const hueMap: Set<number> = new Set();
+          const hueSet = new Set<number>();
           let organicPixels = 0;
 
           for (let i = 0; i < data.length; i += 4) {
-            const r = data[i];
-            const g = data[i + 1];
-            const b = data[i + 2];
+            const r = data[i], g = data[i + 1], b = data[i + 2];
 
             totalBrightness += 0.299 * r + 0.587 * g + 0.114 * b;
 
@@ -88,7 +103,7 @@ export class ScanService {
               if (max === r) hue = ((g - b) / delta) % 6;
               else if (max === g) hue = (b - r) / delta + 2;
               else hue = (r - g) / delta + 4;
-              hueMap.add(Math.round(hue * 30));
+              hueSet.add(Math.round(hue * 30));
               organicPixels++;
             }
           }
@@ -98,12 +113,11 @@ export class ScanService {
             green_dominance: Math.round((greenPixels / totalPixels) * 100),
             red_dominance: Math.round((redPixels / totalPixels) * 100),
             warm_dominance: Math.round((warmPixels / totalPixels) * 100),
-            color_variety: hueMap.size,
             organic_score: Math.round((organicPixels / totalPixels) * 100),
+            color_variety: hueSet.size,
           });
-
         } catch (err) {
-          reject(new Error('Gagal membaca data piksel'));
+          reject(new Error('Gagal membaca piksel gambar'));
         }
       };
 
@@ -112,7 +126,7 @@ export class ScanService {
     });
   }
 
-  // ===== 2. CEK PENCAHAYAAN =====
+  // ===== CEK PENCAHAYAAN =====
   async cekPencahayaan(imageBase64: string): Promise<number> {
     try {
       const params = await this.ekstrakParameter(imageBase64, 50);
@@ -122,83 +136,65 @@ export class ScanService {
     }
   }
 
-  // ===== 3. VALIDASI OBJEK =====
-  private validasiObjek(
-    params: AnalysisParams,
-    kategori: KategoriSayuran
-  ): { valid: boolean; pesan: string } {
-    const { brightness, green_dominance, red_dominance, warm_dominance, color_variety, organic_score } = params;
+  // ===== PIPELINE UTAMA: ML + QUALITY ANALYSIS =====
+  async analyzeImage(imageBase64: string, kategori: KategoriSayuran): Promise<AnalysisResult> {
 
-    if (brightness < 15) {
-      return { valid: false, pesan: 'Gambar terlalu gelap. Aktifkan flash atau pindah ke tempat terang.' };
-    }
+    // === TAHAP 1: ML GATE — WAJIB LOLOS ===
+    console.log('[Pipeline] Tahap 1: ML Gate...');
+    const detection = await this.mlService.detectSayuran(imageBase64);
+    console.log('[Pipeline] Hasil ML:', detection);
 
-    if (brightness > 240 && organic_score < 10) {
-      return { valid: false, pesan: 'Gambar terlalu putih/polos. Arahkan kamera ke sayuran.' };
-    }
-
-    if (color_variety < 3 && organic_score < 15) {
-      return {
-        valid: false,
-        pesan: 'Objek terdeteksi memiliki warna seragam/buatan.\n\nSistem hanya menganalisis sayuran segar. Pastikan:\n• Kamera mengarah ke sayuran\n• Sayuran mengisi sebagian besar frame\n• Pencahayaan cukup'
+    // HARD GATE — jika bukan sayuran langsung stop
+    if (!detection.isSayuran) {
+      throw {
+        type: 'BUKAN_SAYURAN',
+        message: detection.alasan
       };
     }
 
-    switch (kategori) {
-      case 'sayuran-hijau':
-      case 'sayuran-polong':
-        if (organic_score < 20) {
-          return {
-            valid: false,
-            pesan: 'Tidak terdeteksi sebagai sayuran hijau.\n\nPastikan:\n• Yang difoto adalah bayam, kangkung, sawi, dll\n• Sayuran mengisi frame dengan jelas\n• Pencahayaan cukup terang'
-          };
-        }
-        if (red_dominance > 60 && green_dominance < 5) {
-          return {
-            valid: false,
-            pesan: 'Warna merah terlalu dominan untuk sayuran hijau.\n\nGunakan kategori "Sayuran Buah" untuk tomat atau cabai.'
-          };
-        }
-        break;
+    // === TAHAP 2: PARAMETER VISUAL ===
+    console.log('[Pipeline] Tahap 2: Parameter visual...');
+    const params = await this.ekstrakParameter(imageBase64);
 
-      case 'sayuran-buah':
-        if (organic_score < 15) {
-          return {
-            valid: false,
-            pesan: 'Tidak terdeteksi sebagai sayuran buah.\n\nPastikan yang difoto adalah tomat, cabai, terong, atau paprika.'
-          };
-        }
-        break;
-
-      case 'umbi-umbian':
-        if (organic_score < 12) {
-          return {
-            valid: false,
-            pesan: 'Tidak terdeteksi sebagai umbi-umbian.\n\nPastikan yang difoto adalah wortel, kentang, atau ubi dengan pencahayaan cukup.'
-          };
-        }
-        if (green_dominance > 65 && warm_dominance < 5 && red_dominance < 5) {
-          return {
-            valid: false,
-            pesan: 'Warna tidak sesuai untuk umbi-umbian.\n\nWortel, kentang, dan ubi memiliki warna oranye, kuning, atau cokelat.'
-          };
-        }
-        break;
-
-      case 'sayuran-berlapis':
-        if (organic_score < 12) {
-          return {
-            valid: false,
-            pesan: 'Tidak terdeteksi sebagai sayuran berlapis.\n\nPastikan yang difoto adalah kol atau kubis.'
-          };
-        }
-        break;
+    if (params.brightness < 15) {
+      throw {
+        type: 'BUKAN_SAYURAN',
+        message: 'Gambar terlalu gelap. Aktifkan flash atau pindah ke tempat terang.'
+      };
     }
 
-    return { valid: true, pesan: '' };
+    // TAMBAHAN: filter non-organik berdasarkan warna
+    if (params.green_dominance < 3 &&
+        params.red_dominance < 3 &&
+        params.warm_dominance < 3 &&
+        params.organic_score < 10) {
+      throw {
+        type: 'BUKAN_SAYURAN',
+        message: 'Warna objek tidak sesuai dengan sayuran.\n\nArahkan kamera langsung ke sayuran.'
+      };
+    }
+
+    // === TAHAP 3: ANALISIS KUALITAS ===
+    console.log('[Pipeline] Tahap 3: Analisis kualitas...');
+    const threshold = this.vegRefService.getThresholdByKategori(kategori);
+    if (!threshold) throw new Error('Data referensi tidak ditemukan');
+
+    const kualitas = this.analisisKualitas(params, threshold, kategori);
+
+    return {
+      ...kualitas,
+      brightness_value: params.brightness,
+      green_dominance: params.green_dominance,
+      red_dominance: params.red_dominance,
+      warm_dominance: params.warm_dominance,
+      kategori,
+      nama_kategori: KATEGORI_INFO[kategori].label,
+      detected_label: detection.label,
+      ml_confidence: detection.confidence,
+    };
   }
 
-  // ===== 4. HITUNG FRESHNESS =====
+  // ===== ANALISIS KUALITAS PER KATEGORI =====
   private hitungFreshness(nilai: number, min: number, max: number): number {
     if (nilai >= min && nilai <= max) {
       const tengah = (min + max) / 2;
@@ -210,34 +206,7 @@ export class ScanService {
     return Math.max(0, Math.round((max / Math.max(nilai, 1)) * 70));
   }
 
-  // ===== 5. ANALISIS UTAMA =====
-  async analyzeImage(imageBase64: string, kategori: KategoriSayuran): Promise<AnalysisResult> {
-    const params = await this.ekstrakParameter(imageBase64);
-    console.log('[Analisis] Params:', JSON.stringify(params));
-
-    const validasi = this.validasiObjek(params, kategori);
-    if (!validasi.valid) {
-      throw { type: 'BUKAN_SAYURAN', message: validasi.pesan };
-    }
-
-    const threshold = this.vegRefService.getThresholdByKategori(kategori);
-    if (!threshold) throw new Error('Data referensi tidak ditemukan');
-
-    const analisis = this.analisisBerdasarkanKategori(params, threshold, kategori);
-
-    return {
-      ...analisis,
-      brightness_value: params.brightness,
-      green_dominance: params.green_dominance,
-      red_dominance: params.red_dominance,
-      warm_dominance: params.warm_dominance,
-      kategori,
-      nama_kategori: KATEGORI_INFO[kategori].label,
-    };
-  }
-
-  // ===== 6. LOGIKA PER KATEGORI =====
-  private analisisBerdasarkanKategori(
+  private analisisKualitas(
     params: AnalysisParams,
     threshold: VegetableReference,
     kategori: KategoriSayuran
@@ -250,9 +219,9 @@ export class ScanService {
 
     switch (kategori) {
       case 'sayuran-hijau': {
-        const greenScore = this.hitungFreshness(green_dominance, threshold.min_green, threshold.max_green);
-        const brightnessScore = this.hitungFreshness(brightness, threshold.min_brightness, threshold.max_brightness);
-        freshness_percentage = Math.round((greenScore * 0.65) + (brightnessScore * 0.35));
+        const gScore = this.hitungFreshness(green_dominance, threshold.min_green, threshold.max_green);
+        const bScore = this.hitungFreshness(brightness, threshold.min_brightness, threshold.max_brightness);
+        freshness_percentage = Math.round((gScore * 0.65) + (bScore * 0.35));
         isLayak = green_dominance >= threshold.min_green && brightness >= threshold.min_brightness;
         alasan = isLayak
           ? `Sayuran hijau segar. Hijau: ${green_dominance}%, kecerahan: ${brightness}.`
@@ -260,10 +229,10 @@ export class ScanService {
         break;
       }
       case 'sayuran-buah': {
-        const redScore = this.hitungFreshness(red_dominance, threshold.min_red, threshold.max_red);
-        const warmScore = this.hitungFreshness(warm_dominance, threshold.min_warm, threshold.max_warm);
-        const brightnessScore = this.hitungFreshness(brightness, threshold.min_brightness, threshold.max_brightness);
-        freshness_percentage = Math.round((redScore * 0.40) + (warmScore * 0.30) + (brightnessScore * 0.30));
+        const rScore = this.hitungFreshness(red_dominance, threshold.min_red, threshold.max_red);
+        const wScore = this.hitungFreshness(warm_dominance, threshold.min_warm, threshold.max_warm);
+        const bScore = this.hitungFreshness(brightness, threshold.min_brightness, threshold.max_brightness);
+        freshness_percentage = Math.round((rScore * 0.40) + (wScore * 0.30) + (bScore * 0.30));
         isLayak = (red_dominance >= threshold.min_red || warm_dominance >= threshold.min_warm || green_dominance >= 10)
           && brightness >= threshold.min_brightness;
         alasan = isLayak
@@ -272,21 +241,21 @@ export class ScanService {
         break;
       }
       case 'umbi-umbian': {
-        const warmScore = this.hitungFreshness(warm_dominance, threshold.min_warm, threshold.max_warm);
-        const redScore = this.hitungFreshness(red_dominance, threshold.min_red, threshold.max_red);
-        const brightnessScore = this.hitungFreshness(brightness, threshold.min_brightness, threshold.max_brightness);
-        freshness_percentage = Math.round((warmScore * 0.45) + (redScore * 0.25) + (brightnessScore * 0.30));
+        const wScore = this.hitungFreshness(warm_dominance, threshold.min_warm, threshold.max_warm);
+        const rScore = this.hitungFreshness(red_dominance, threshold.min_red, threshold.max_red);
+        const bScore = this.hitungFreshness(brightness, threshold.min_brightness, threshold.max_brightness);
+        freshness_percentage = Math.round((wScore * 0.45) + (rScore * 0.25) + (bScore * 0.30));
         isLayak = (warm_dominance >= threshold.min_warm || red_dominance >= threshold.min_red)
           && brightness >= threshold.min_brightness;
         alasan = isLayak
           ? `Umbi segar. Hangat: ${warm_dominance}%, kecerahan: ${brightness}.`
-          : `Warna umbi kurang sesuai. Hangat: ${warm_dominance}%, kecerahan: ${brightness}.`;
+          : `Warna umbi tidak sesuai. Hangat: ${warm_dominance}%, kecerahan: ${brightness}.`;
         break;
       }
       case 'sayuran-berlapis': {
-        const brightnessScore = this.hitungFreshness(brightness, threshold.min_brightness, threshold.max_brightness);
-        const greenScore = this.hitungFreshness(green_dominance, threshold.min_green, threshold.max_green);
-        freshness_percentage = Math.round((brightnessScore * 0.65) + (greenScore * 0.35));
+        const bScore = this.hitungFreshness(brightness, threshold.min_brightness, threshold.max_brightness);
+        const gScore = this.hitungFreshness(green_dominance, threshold.min_green, threshold.max_green);
+        freshness_percentage = Math.round((bScore * 0.65) + (gScore * 0.35));
         isLayak = brightness >= threshold.min_brightness;
         alasan = isLayak
           ? `Sayuran berlapis normal. Kecerahan: ${brightness}.`
@@ -294,9 +263,9 @@ export class ScanService {
         break;
       }
       case 'sayuran-polong': {
-        const greenScore = this.hitungFreshness(green_dominance, threshold.min_green, threshold.max_green);
-        const brightnessScore = this.hitungFreshness(brightness, threshold.min_brightness, threshold.max_brightness);
-        freshness_percentage = Math.round((greenScore * 0.60) + (brightnessScore * 0.40));
+        const gScore = this.hitungFreshness(green_dominance, threshold.min_green, threshold.max_green);
+        const bScore = this.hitungFreshness(brightness, threshold.min_brightness, threshold.max_brightness);
+        freshness_percentage = Math.round((gScore * 0.60) + (bScore * 0.40));
         isLayak = green_dominance >= threshold.min_green && brightness >= threshold.min_brightness;
         alasan = isLayak
           ? `Sayuran polong segar. Hijau: ${green_dominance}%, kecerahan: ${brightness}.`
@@ -317,7 +286,7 @@ export class ScanService {
     };
   }
 
-  // ===== 7. BUAT THUMBNAIL =====
+  // ===== BUAT THUMBNAIL =====
   makeThumbnail(base64: string, size = 120, quality = 0.6): Promise<string> {
     return new Promise((resolve, reject) => {
       const img = new Image();
@@ -338,59 +307,78 @@ export class ScanService {
     });
   }
 
-  // ===== 8. SIMPAN HASIL SCAN — pakai Firebase native =====
+  // ===== SIMPAN HASIL SCAN — dengan deviceId =====
+  // ===== SIMPAN HASIL SCAN =====
   async saveScanResult(result: Omit<ScanResult, 'id'>): Promise<string> {
     try {
-      // Buat thumbnail kecil
+      const deviceId = await this.deviceService.getDeviceId();
+      console.log('[Save] Device ID:', deviceId);
+
       let imageToSave = '';
       try {
         imageToSave = await this.makeThumbnail(result.image, 120, 0.6);
-        console.log('[Save] Thumbnail size:', Math.round(imageToSave.length / 1024), 'KB');
-      } catch (e) {
-        console.warn('[Save] Thumbnail gagal, simpan tanpa gambar');
+      } catch {
+        imageToSave = '';
       }
 
-      const dataToSave = {
-        ...result,
-        image: imageToSave,
-        scanned_at: firebase.firestore.Timestamp.fromDate(
-          result.scanned_at instanceof Date ? result.scanned_at : new Date()
-        ),
+      // Bersihkan semua nilai undefined/null
+      // Firebase akan reject jika ada field undefined
+      const dataToSave: { [key: string]: any } = {
+        userId: deviceId || 'unknown',
+        image: imageToSave || '',
+        status: result.status || 'Tidak Layak',
+        freshness_percentage: result.freshness_percentage || 0,
+        brightness_value: result.brightness_value || 0,
+        green_dominance: result.green_dominance || 0,
+        red_dominance: result.red_dominance || 0,
+        warm_dominance: result.warm_dominance || 0,
+        kategori: result.kategori || 'sayuran-hijau',
+        nama_kategori: result.nama_kategori || '',
+        detected_label: result.detected_label || '',
+        ml_confidence: result.ml_confidence || 0,
+        alasan: result.alasan || '',
+        scanned_at: firebase.firestore.Timestamp.now(),
       };
 
-      // Gunakan Firebase native — tidak ada masalah injection context
+      // Hapus field yang masih undefined atau null
+      Object.keys(dataToSave).forEach(key => {
+        if (dataToSave[key] === undefined || dataToSave[key] === null) {
+          delete dataToSave[key];
+        }
+      });
+
+      console.log('[Save] Data yang akan disimpan:', {
+        ...dataToSave,
+        image: dataToSave['image'] ? `[${Math.round(dataToSave['image'].length / 1024)}KB]` : 'kosong'
+      });
+
       const docRef = await this.db.collection('scan_results').add(dataToSave);
-      console.log('[Save] Berhasil! ID:', docRef.id);
+      console.log('[Save] BERHASIL! ID:', docRef.id);
       return docRef.id;
 
     } catch (error: any) {
-      console.error('[Save] Error:', error?.message || error);
-      throw new Error('Gagal menyimpan: ' + (error?.message || 'Unknown error'));
+      console.error('[Save] GAGAL:', error?.code, error?.message);
+      throw new Error('Gagal menyimpan: ' + (error?.message || 'Unknown'));
     }
   }
 
-  // ===== 9. AMBIL RIWAYAT — pakai Firebase native =====
+  // ===== AMBIL RIWAYAT — filter per deviceId =====
   async getScanHistory(): Promise<ScanResult[]> {
     try {
-      const snapshot = await this.db.collection('scan_results').get();
+      const deviceId = await this.deviceService.getDeviceId();
+      console.log('[History] Device ID:', deviceId);
 
-      const results: ScanResult[] = snapshot.docs.map(d => {
-        const data = d.data() as any;
-        return {
-          id: d.id,
-          image: data['image'] ?? '',
-          status: data['status'] ?? 'Tidak Layak',
-          freshness_percentage: data['freshness_percentage'] ?? 0,
-          brightness_value: data['brightness_value'] ?? 0,
-          green_dominance: data['green_dominance'] ?? 0,
-          red_dominance: data['red_dominance'] ?? 0,
-          warm_dominance: data['warm_dominance'] ?? 0,
-          kategori: data['kategori'] ?? 'sayuran-hijau',
-          nama_kategori: data['nama_kategori'] ?? '-',
-          alasan: data['alasan'] ?? '',
-          scanned_at: data['scanned_at'] ?? null,
-        } as ScanResult;
-      });
+      const snapshot = await this.db
+        .collection('scan_results')
+        .where('userId', '==', deviceId)
+        .get();
+
+      console.log('[History] Jumlah data:', snapshot.docs.length);
+
+      const results = snapshot.docs.map(d => ({
+        id: d.id,
+        ...d.data()
+      } as ScanResult));
 
       return results.sort((a, b) => {
         const toMs = (v: any) => {
@@ -403,12 +391,11 @@ export class ScanService {
       });
 
     } catch (error: any) {
-      console.error('[History] Error:', error?.message);
+      console.error('[History] Gagal:', error?.message);
       return [];
     }
   }
-
-  // ===== 10. HAPUS SCAN — pakai Firebase native =====
+  // ===== HAPUS SCAN =====
   async deleteScanResult(id: string): Promise<void> {
     await this.db.collection('scan_results').doc(id).delete();
   }

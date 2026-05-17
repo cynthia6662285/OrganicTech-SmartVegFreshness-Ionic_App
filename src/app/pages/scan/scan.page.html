@@ -52,6 +52,16 @@
         <ion-icon [name]="kategoriInfo[kategoriDipilih].icon" [style.color]="kategoriInfo[kategoriDipilih].warna"></ion-icon>
         <span [style.color]="kategoriInfo[kategoriDipilih].warna">{{ kategoriInfo[kategoriDipilih].label }}</span>
       </div>
+            <!-- Status ML Model -->
+      <div class="ml-status" *ngIf="step === 'siap-scan'">
+        <span *ngIf="!isModelReady" class="ml-loading">
+          <ion-spinner name="dots" style="width:14px;height:14px"></ion-spinner>
+          Memuat model AI...
+        </span>
+        <span *ngIf="isModelReady" class="ml-ready">
+          ✓ Model AI siap
+        </span>
+      </div>
     </div>
 
     <div class="scan-frame">
